@@ -12,6 +12,8 @@ import YearlyBarChart from "@/components/YearlyBarChart";
 import FactorBarChart from "@/components/FactorBarChart";
 import StatsTable from "@/components/StatsTable";
 import ThemeToggle from "@/components/ThemeToggle";
+import PanelUnavailable from "@/components/PanelUnavailable";
+import { type BackendFailure } from "@/lib/backendStatus";
 
 const TABS = ["Equity", "Heatmap", "Distribution", "Rolling Sharpe", "Yearly", "Factor", "Stats", "Risk Matrix"] as const;
 
@@ -84,6 +86,7 @@ function BacktestPage() {
   });
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [failure, setFailure] = useState<BackendFailure | null>(null);
   const [tab, setTab] = useState<typeof TABS[number]>("Equity");
   const [status, setStatus] = useState("Click Run Backtest to begin");
   const [user, setUser] = useState("");
@@ -191,7 +194,7 @@ function BacktestPage() {
   }
 
   const run = useCallback(async () => {
-    setLoading(true); setStatus("Running backtest...");
+    setLoading(true); setStatus("Running backtest..."); setFailure(null);
     try {
       const r = await runBacktest(params);
       setResult(r);
@@ -199,7 +202,19 @@ function BacktestPage() {
       // Compute risk assessment from actual backtest result
       setRiskData(computeRiskAssessment(r));
     }
-    catch (e: unknown) { setStatus(`Error: ${e instanceof Error ? e.message : "Backtest failed"}`); }
+    catch (e: unknown) {
+      // Was: a raw axios string in a grey caption, e.g. "Error: Request failed
+      // with status code 404", which tells a visitor nothing about whether the
+      // backend is asleep, absent, or broken.
+      const status = (e as { response?: { status?: number } })?.response?.status;
+      // >= 500 through the Next rewrite means the upstream never answered,
+      // not that it answered with an error. See lib/backendStatus.classify.
+      if (status === 404) setFailure("not-deployed");
+      else if (status === 401 || status === 403) setFailure("unauthorized");
+      else if (status === undefined || status >= 500) setFailure("unreachable");
+      else setFailure("error");
+      setStatus("");
+    }
     finally { setLoading(false); }
   }, [params, strategyId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -313,6 +328,16 @@ function BacktestPage() {
 
         {/* Right area */}
         <div className="flex-1 p-3 overflow-y-auto h-[calc(100vh-50px)] bg-slate-50 dark:bg-slate-900">
+          {failure && (
+            <div className="mb-3">
+              <PanelUnavailable
+                failure={failure}
+                panel="Backtester"
+                needs="the /api/backtest routes"
+                onRetry={run}
+              />
+            </div>
+          )}
           {result && (
             <>
               <KpiGrid kpis={result.kpis} />

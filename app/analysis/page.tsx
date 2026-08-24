@@ -13,6 +13,8 @@ import OptimizePanel from "@/components/OptimizePanel";
 import StressTestPanel from "@/components/StressTestPanel";
 import SensitivityPanel from "@/components/SensitivityPanel";
 import ThemeToggle from "@/components/ThemeToggle";
+import PanelUnavailable from "@/components/PanelUnavailable";
+import { type BackendFailure } from "@/lib/backendStatus";
 
 const TABS = ["Walk-Forward", "Optimize", "Stress Test", "Sensitivity"] as const;
 type Tab = typeof TABS[number];
@@ -57,6 +59,7 @@ function AnalysisPage() {
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [tab, setTab] = useState<Tab>("Walk-Forward");
   const [loading, setLoading] = useState(false);
+  const [failure, setFailure] = useState<BackendFailure | null>(null);
   const [status, setStatus] = useState("");
   const [user, setUser] = useState("");
 
@@ -174,6 +177,14 @@ function AnalysisPage() {
       const resp = (e as any)?.response;
       if (resp?.data?.detail) msg = resp.data.detail;
       else if (resp?.status) msg = `HTTP ${resp.status}: ${msg}`;
+      // Classify alongside the raw message, so a 404 from a router that this
+      // deployment never registered is not shown as an unexplained failure.
+      const code = resp?.status as number | undefined;
+      // >= 500 through the Next rewrite means the upstream never answered.
+      if (code === 404) setFailure("not-deployed");
+      else if (code === 401 || code === 403) setFailure("unauthorized");
+      else if (code === undefined || code >= 500) setFailure("unreachable");
+      else setFailure("error");
       setStatus(`Error: ${msg}`);
     } finally {
       setLoading(false);
@@ -384,6 +395,16 @@ function AnalysisPage() {
 
         {/* Right area */}
         <div className="flex-1 p-4 overflow-y-auto h-[calc(100vh-50px)] bg-slate-50 dark:bg-slate-900">
+          {failure && (
+            <div className="mb-3">
+              <PanelUnavailable
+                failure={failure}
+                panel="Advanced analysis"
+                needs="the /api/advanced routes"
+                onRetry={() => { setFailure(null); }}
+              />
+            </div>
+          )}
           {/* Tab bar */}
           <div className="flex gap-1 mb-3 border-b border-slate-200 dark:border-slate-700">
             {TABS.map((t) => (

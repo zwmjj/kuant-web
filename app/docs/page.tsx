@@ -1,7 +1,9 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import NavShell from "@/components/NavShell";
+import PanelUnavailable from "@/components/PanelUnavailable";
+import { fetchPanel, type BackendFailure } from "@/lib/backendStatus";
 
 interface DownloadFile {
   name: string; label: string; description: string;
@@ -27,17 +29,26 @@ export default function DocsPage() {
   const router = useRouter();
   const [files, setFiles] = useState<DownloadFile[]>([]);
   const [readme, setReadme] = useState("");
+  const [failure, setFailure] = useState<BackendFailure | null>(null);
   const [tab, setTab] = useState<"all" | "factors" | "strategies" | "research" | "features" | "readme">("all");
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
+  // Was: .catch(() => {}) on both requests, so a missing /api/downloads router
+  // left the file list empty and the README stuck on "Loading..." forever.
+  const load = useCallback(async () => {
     const token = localStorage.getItem("token");
     if (!token) { router.replace("/login"); return; }
-    fetch("/api/downloads/list", { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json()).then(d => setFiles(d.files || [])).catch(() => {});
-    fetch("/api/downloads/readme", { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.text()).then(setReadme).catch(() => {});
+    setFailure(null);
+    const list = await fetchPanel<{ files?: DownloadFile[] }>("/api/downloads/list");
+    if (!list.ok) { setFailure(list.failure); return; }
+    setFiles(list.data.files || []);
+    try {
+      const res = await fetch("/api/downloads/readme", { headers: { Authorization: `Bearer ${token}` } });
+      setReadme(res.ok ? await res.text() : "");
+    } catch { setReadme(""); }
   }, [router]);
+
+  useEffect(() => { void load(); }, [load]);
 
   const download = async (endpoint: string, filename: string) => {
     const token = localStorage.getItem("token");
@@ -101,10 +112,17 @@ export default function DocsPage() {
           ))}
         </div>
 
-        {tab === "readme" ? (
+        {failure ? (
+          <PanelUnavailable
+            failure={failure}
+            panel="Downloads"
+            needs="the /api/downloads routes"
+            onRetry={load}
+          />
+        ) : tab === "readme" ? (
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
             <pre className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-mono leading-relaxed max-h-[70vh] overflow-y-auto">
-              {readme || "Loading..."}
+              {readme || "No README returned by the backend."}
             </pre>
           </div>
         ) : (

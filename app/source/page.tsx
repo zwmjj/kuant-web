@@ -1,8 +1,10 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import NavShell from "@/components/NavShell";
+import PanelUnavailable from "@/components/PanelUnavailable";
+import { fetchPanel, type BackendFailure } from "@/lib/backendStatus";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
@@ -15,16 +17,22 @@ export default function SourcePage() {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [theme, setTheme] = useState("vs-dark");
+  const [failure, setFailure] = useState<BackendFailure | null>(null);
 
-  useEffect(() => {
+  // Was: .catch(() => setFiles([])), which renders exactly like a repository
+  // that genuinely contains no source files.
+  const load = useCallback(async () => {
     const t = localStorage.getItem("token");
     if (!t) { router.replace("/login"); return; }
     const isDark = document.documentElement.classList.contains("dark");
     setTheme(isDark ? "vs-dark" : "light");
-    fetch("/api/code/files", { headers: { Authorization: `Bearer ${t}` } })
-      .then(r => r.json()).then(d => setFiles(d.files || []))
-      .catch(() => setFiles([]));
+    setFailure(null);
+    const res = await fetchPanel<{ files?: SourceFile[] }>("/api/code/files");
+    if (!res.ok) { setFailure(res.failure); setFiles([]); return; }
+    setFiles(res.data.files || []);
   }, [router]);
+
+  useEffect(() => { void load(); }, [load]);
 
   const loadFile = async (path: string) => {
     setLoading(true); setSelectedFile(path);
@@ -39,6 +47,22 @@ export default function SourcePage() {
 
   const grouped: Record<string, SourceFile[]> = {};
   files.forEach(f => { if (!grouped[f.category]) grouped[f.category] = []; grouped[f.category].push(f); });
+
+  if (failure) {
+    return (
+      <NavShell>
+        <div className="max-w-3xl mx-auto px-4 py-10">
+          <h1 className="text-2xl font-bold mb-4">Source Viewer</h1>
+          <PanelUnavailable
+            failure={failure}
+            panel="Source viewer"
+            needs="the /api/code routes"
+            onRetry={load}
+          />
+        </div>
+      </NavShell>
+    );
+  }
 
   return (
     <NavShell>
