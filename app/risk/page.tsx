@@ -142,9 +142,14 @@ export default function RiskPage() {
     try {
       const res = await fetch("/api/risk/realtime");
       if (!res.ok) throw new Error("API error");
-      const data: RiskRealtime = await res.json();
+      const data: RiskRealtime & { data_source?: string } = await res.json();
       setRiskData(data);
-      setUsingMock(false);
+      // A 200 from the backend does not mean the numbers are real. The risk
+      // router generates its portfolio from np.random.RandomState(42) and
+      // says so in `data_source`; the risk maths on top is genuine, the
+      // portfolio underneath is not. Trust that field rather than the status
+      // code, or the badge turns green on synthetic data.
+      setUsingMock(data.data_source !== "live");
     } catch {
       // 后端不可用，使用模拟数据
       setUsingMock(true);
@@ -156,9 +161,11 @@ export default function RiskPage() {
     try {
       const res = await fetch("/api/risk/alerts");
       if (!res.ok) throw new Error("API error");
-      const data: AlertItem[] = await res.json();
+      const body = await res.json();
+      // The endpoint returns an envelope, not a bare array.
+      const data: AlertItem[] = Array.isArray(body) ? body : (body?.alerts ?? []);
       setAlerts(data);
-      setUsingMock(false);
+      setUsingMock((Array.isArray(body) ? undefined : body?.data_source) !== "live");
     } catch {
       // 后端不可用，模拟新增告警
       setUsingMock(true);
@@ -283,7 +290,7 @@ export default function RiskPage() {
           </div>
           <div className="flex items-center gap-2">
             <span className={`inline-block w-2.5 h-2.5 rounded-full ${usingMock ? "bg-amber-500" : "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]"}`} />
-            <span className="text-xs text-slate-400">{usingMock ? "Simulated" : "Live Data"}</span>
+            <span className="text-xs text-slate-400">{usingMock ? "Synthetic portfolio" : "Live Data"}</span>
           </div>
         </div>
 
@@ -482,7 +489,7 @@ export default function RiskPage() {
         {/* ═══ 底部状态栏 ═══ */}
         <div className="flex flex-wrap gap-6 text-[10px] text-slate-400 border-t border-slate-100 dark:border-slate-700 pt-3">
           <span>Refresh interval: 3s</span>
-          <span>Data source: {usingMock ? "Simulated (backend offline)" : "Live API"}</span>
+          <span>Data source: {usingMock ? "synthetic portfolio (risk maths is real, the book is generated)" : "live API"}</span>
           <span>Health Score: {riskData.healthScore} / 100</span>
         </div>
       </div>
