@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import NavShell from "@/components/NavShell";
+import { backendPath } from "@/lib/backend";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
@@ -59,7 +60,7 @@ export default function IDEPage() {
     setRunning(true); setResult(null);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://127.0.0.1:8000/api/code/run", {
+      const res = await fetch(backendPath("/api/code/run"), {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ code, mode }),

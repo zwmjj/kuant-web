@@ -122,7 +122,7 @@ export default function ReportsPage() {
   const sortArrow = (key: SortKey) =>
     sortKey === key ? (sortAsc ? " ▲" : " ▼") : "";
 
-  /* ─── 下载 CSV ─── */
+  /* ─── Download CSV ─── */
   const downloadCSV = () => {
     const header = "Strategy,Sharpe,Ann Return,Max DD,Rating";
     const rows = sortedStrategies.map(
@@ -138,7 +138,7 @@ export default function ReportsPage() {
     URL.revokeObjectURL(url);
   };
 
-  /* ─── 下载 Markdown ─── */
+  /* ─── Download Markdown ─── */
   const downloadMarkdown = () => {
     const lines = [
       "# Research Report",
@@ -210,7 +210,7 @@ export default function ReportsPage() {
             onClick={() => window.location.reload()}
             className="no-print px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition"
           >
-            生成新报告
+            Generate report
           </button>
         </div>
 
@@ -219,7 +219,7 @@ export default function ReportsPage() {
 
           {/* ─── 左栏: 策略对比表 ─── */}
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 overflow-x-auto">
-            <h3 className="text-sm font-bold mb-4">策略排名</h3>
+            <h3 className="text-sm font-bold mb-4">Strategy ranking</h3>
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-[10px] uppercase text-slate-400 border-b border-slate-100 dark:border-slate-700">
@@ -261,7 +261,7 @@ export default function ReportsPage() {
 
           {/* ─── 中栏: 因子归因分析 ─── */}
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 space-y-5">
-            <h3 className="text-sm font-bold">因子归因分析</h3>
+            <h3 className="text-sm font-bold">Factor attribution</h3>
 
             {/* 因子贡献柱状图 */}
             <div>
@@ -283,7 +283,7 @@ export default function ReportsPage() {
 
             {/* IC/IR 排名表 */}
             <div>
-              <p className="text-[10px] text-slate-400 mb-2">IC / IR 排名</p>
+              <p className="text-[10px] text-slate-400 mb-2">Ranked by IC / IR</p>
               <table className="w-full text-xs">
                 <thead>
                   <tr className="text-[10px] uppercase text-slate-400 border-b border-slate-100 dark:border-slate-700">
@@ -307,7 +307,7 @@ export default function ReportsPage() {
 
           {/* ─── 右栏: 风险分析 ─── */}
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 space-y-5">
-            <h3 className="text-sm font-bold">风险分析</h3>
+            <h3 className="text-sm font-bold">Risk analysis</h3>
 
             {/* 风险指标卡片 */}
             <div className="grid grid-cols-2 gap-2">
@@ -339,7 +339,7 @@ export default function ReportsPage() {
 
             {/* 相关性矩阵热力图 */}
             <div>
-              <p className="text-[10px] text-slate-400 mb-2">策略间相关性矩阵</p>
+              <p className="text-[10px] text-slate-400 mb-2">Cross-strategy correlation matrix</p>
               <div className="overflow-x-auto">
                 <table className="text-[10px] w-full">
                   <thead>
@@ -374,19 +374,19 @@ export default function ReportsPage() {
             onClick={() => window.print()}
             className="px-4 py-2 rounded-lg text-sm font-medium bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 hover:opacity-90 transition"
           >
-            下载 PDF
+            Download PDF
           </button>
           <button
             onClick={downloadCSV}
             className="px-4 py-2 rounded-lg text-sm font-medium border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
           >
-            下载 CSV
+            Download CSV
           </button>
           <button
             onClick={downloadMarkdown}
             className="px-4 py-2 rounded-lg text-sm font-medium border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
           >
-            下载 Markdown
+            Download Markdown
           </button>
         </div>
       </div>

@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import NavShell from "@/components/NavShell";
+import { backendPath } from "@/lib/backend";
 
 /* ─── 类型定义 ─── */
 
@@ -19,8 +20,8 @@ type AgentStatus = "idle" | "running" | "offline";
 interface AgentState {
   id: string;
   status: AgentStatus;
-  lastRunAt: string | null;   // ISO 时间戳
-  lastDuration: number | null; // 秒
+  lastRunAt: string | null;   // ISO timestamp
+  lastDuration: number | null; // seconds
 }
 
 // 任务
@@ -30,7 +31,7 @@ interface Task {
   prompt: string;
   status: "running" | "completed" | "failed";
   started: string;   // ISO
-  duration: number | null; // 秒
+  duration: number | null; // seconds
   output: string | null;
 }
 
@@ -45,12 +46,12 @@ interface LogEntry {
 
 /* ─── Agent 元数据 ─── */
 const AGENTS: AgentDef[] = [
-  { id: "data-agent",     name: "Data Agent",     icon: "📊", description: "数据采集与清洗，拉取行情、基本面、另类数据" },
-  { id: "signal-agent",   name: "Signal Agent",   icon: "📈", description: "因子计算与信号生成，多因子打分排名" },
-  { id: "strategy-agent", name: "Strategy Agent",  icon: "🎯", description: "策略回测与优化，组合构建与风控" },
-  { id: "api-agent",      name: "API Agent",      icon: "🔌", description: "外部 API 对接，券商下单与数据源整合" },
-  { id: "web-agent",      name: "Web Agent",      icon: "🖥️", description: "前端自动化，报告生成与页面部署" },
-  { id: "ml-agent",       name: "ML Agent",       icon: "🤖", description: "机器学习模型训练，特征工程与预测" },
+  { id: "data-agent",     name: "Data Agent",     icon: "📊", description: "Data collection and cleaning — market, fundamental and alternative data" },
+  { id: "signal-agent",   name: "Signal Agent",   icon: "📈", description: "Factor computation and signal generation — multi-factor scoring and ranking" },
+  { id: "strategy-agent", name: "Strategy Agent",  icon: "🎯", description: "Strategy backtesting and optimization — portfolio construction and risk control" },
+  { id: "api-agent",      name: "API Agent",      icon: "🔌", description: "External API integration — broker order routing and data-source plumbing" },
+  { id: "web-agent",      name: "Web Agent",      icon: "🖥️", description: "Frontend automation — report generation and page deployment" },
+  { id: "ml-agent",       name: "ML Agent",       icon: "🤖", description: "ML model training — feature engineering and prediction" },
 ];
 
 /* ─── 模拟数据生成 ─── */
@@ -59,14 +60,14 @@ const AGENTS: AgentDef[] = [
 function generateMockTasks(): Task[] {
   const statuses: Task["status"][] = ["completed", "completed", "failed", "completed", "running", "completed"];
   const prompts = [
-    "拉取 AAPL 最近 5 年日线数据",
-    "计算动量因子 IC 值",
-    "运行多因子策略回测 2020-2025",
-    "对接 Alpaca 获取实时行情",
-    "生成本周策略报告",
-    "训练 GBDT 收益预测模型",
-    "拉取 A 股全市场因子数据",
-    "计算信号热力图",
+    "Fetch 5 years of AAPL daily bars",
+    "Compute the IC of the momentum factor",
+    "Run the multi-factor strategy backtest, 2020-2025",
+    "Connect to Alpaca for live market data",
+    "Generate this week's strategy report",
+    "Train the GBDT return-prediction model",
+    "Fetch factor data for the full China A-share market",
+    "Compute the signal heatmap",
   ];
   const tasks: Task[] = [];
   const now = Date.now();
@@ -83,9 +84,9 @@ function generateMockTasks(): Task[] {
       started,
       duration,
       output: status === "completed"
-        ? `任务成功完成。处理了 ${Math.floor(100 + Math.random() * 9900)} 条记录。\n耗时 ${duration}s，无异常。`
+        ? `Completed. Processed ${Math.floor(100 + Math.random() * 9900)} records in ${duration}s with no errors. (Demo output.)`
         : status === "failed"
-          ? "Error: 连接超时，请检查网络后重试。\nTraceback: TimeoutError at line 42"
+          ? "Error: connection timed out; check the network and retry.\nTraceback: TimeoutError at line 42 (demo output.)"
           : null,
     });
   }
@@ -168,8 +169,8 @@ const EVENT_COLOR: Record<string, string> = {
   failed: "text-red-400",
 };
 
-/* ─── 后端 API 地址 ─── */
-const API_BASE = "http://127.0.0.1:8000/api/agents";
+/* ─── Backend API base ─── */
+const API_BASE = backendPath("/api/agents");
 
 /* ─── 页面组件 ─── */
 export default function AgentsPage() {
@@ -183,9 +184,9 @@ export default function AgentsPage() {
 
   // 模态框状态
   const [modalOpen, setModalOpen] = useState(false);
-  const [modalAgent, setModalAgent] = useState<string>(AGENTS[0].id);       // 单选 agent
+  const [modalAgent, setModalAgent] = useState<string>(AGENTS[0].id);       // single-select agent
   const [modalPrompt, setModalPrompt] = useState("");
-  const [parallelMode, setParallelMode] = useState(false);                  // 并行模式
+  const [parallelMode, setParallelMode] = useState(false);                  // parallel mode
   const [parallelAgents, setParallelAgents] = useState<Record<string, { checked: boolean; prompt: string }>>(
     () => Object.fromEntries(AGENTS.map((a) => [a.id, { checked: false, prompt: "" }]))
   );
@@ -193,24 +194,24 @@ export default function AgentsPage() {
   // 活动日志自动滚动
   const logEndRef = useRef<HTMLDivElement>(null);
 
-  // 鉴权 + 初始化模拟数据
+  // Auth gate, then seed the demo dataset
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) { router.replace("/login"); return; }
 
-    // 初始化模拟数据
+    // Seed the demo dataset
     const mockTasks = generateMockTasks();
     setTasks(mockTasks);
     setLogs(generateMockLogs());
     setAgentStates(deriveAgentStates(mockTasks));
   }, [router]);
 
-  // 日志自动滚动到底部
+  // Keep the log scrolled to the newest entry
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
 
-  // 每 3 秒轮询后端更新任务状态（失败时静默降级用本地数据）
+  // Poll the backend every 3s; fall back to local demo state when it is unreachable
   useEffect(() => {
     const interval = setInterval(() => {
       fetch(`${API_BASE}/tasks`)
@@ -236,7 +237,7 @@ export default function AgentsPage() {
                   event: "completed",
                   duration: Math.floor(elapsed),
                 });
-                return { ...t, status: "completed" as const, duration: Math.floor(elapsed), output: `模拟完成。耗时 ${Math.floor(elapsed)}s` };
+                return { ...t, status: "completed" as const, duration: Math.floor(elapsed), output: `Demo run finished in ${Math.floor(elapsed)}s` };
               }
               return t;
             });
@@ -298,7 +299,7 @@ export default function AgentsPage() {
           event: "failed",
           duration,
         });
-        return { ...t, status: "failed" as const, duration, output: "任务被用户手动停止" };
+        return { ...t, status: "failed" as const, duration, output: "Stopped by the user" };
       });
       if (newLogs.length > 0) {
         setTimeout(() => setLogs((prev) => [...prev, ...newLogs]), 0);
@@ -339,11 +340,11 @@ export default function AgentsPage() {
     <NavShell>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">
 
-        {/* ═══ 顶部标题 + 快捷操作栏 ═══ */}
+        {/* ═══ Header + quick actions ═══ */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Agent Control Center</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">AI Agent 编排与监控面板</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Orchestration and monitoring panel for the agent fleet</p>
           </div>
           <button
             onClick={() => openModal()}
@@ -351,6 +352,19 @@ export default function AgentsPage() {
           >
             <span className="text-lg">▶</span> Start Agent
           </button>
+        </div>
+
+        {/* The task list, the logs and the run outputs below are generated in
+            this component. When the backend is reachable the poll replaces
+            them with real state; when it is not, they keep ticking on a timer.
+            Say which one the visitor is looking at rather than letting
+            fabricated task output pass as a running fleet. */}
+        <div className="rounded-xl border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-xs text-amber-900 dark:text-amber-200">
+          <strong className="font-semibold">Demo data.</strong> This page seeds
+          itself with generated task history and log entries, and falls back to
+          them whenever <code>{API_BASE}</code> is unreachable. Launching an agent
+          from here runs a client-side simulation, not a real job. Connect the
+          backend to see live state.
         </div>
 
         {/* ═══ 主体: 左 2/3 卡片网格 + 右 1/3 活动日志 ═══ */}
@@ -392,9 +406,9 @@ export default function AgentsPage() {
                   {/* 最近运行信息 */}
                   <div className="text-[10px] text-slate-500 dark:text-slate-600">
                     {state?.lastRunAt ? (
-                      <>最近运行: {fmtTime(state.lastRunAt)} · {fmtDuration(state.lastDuration)}</>
+                      <>Last run: {fmtTime(state.lastRunAt)} · {fmtDuration(state.lastDuration)}</>
                     ) : (
-                      <>尚未运行</>
+                      <>Not run yet</>
                     )}
                   </div>
 
@@ -412,7 +426,7 @@ export default function AgentsPage() {
 
           {/* 右侧: 活动日志 */}
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 flex flex-col">
-            <h3 className="text-sm font-bold mb-3">活动日志</h3>
+            <h3 className="text-sm font-bold mb-3">Activity log</h3>
             <div className="flex-1 overflow-y-auto max-h-[420px] space-y-1.5 pr-1 scrollbar-thin">
               {logs.map((log) => (
                 <div
@@ -438,7 +452,7 @@ export default function AgentsPage() {
 
         {/* ═══ 底部: 任务列表表格 ═══ */}
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-          <h3 className="text-sm font-bold mb-4">任务列表</h3>
+          <h3 className="text-sm font-bold mb-4">Tasks</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -493,11 +507,11 @@ export default function AgentsPage() {
                         <tr>
                           <td colSpan={7} className="p-4 bg-slate-50 dark:bg-slate-900/50">
                             <div className="text-xs font-mono whitespace-pre-wrap text-slate-400 max-h-40 overflow-y-auto">
-                              <div className="text-[10px] text-slate-500 mb-1 font-sans font-semibold">完整 Prompt:</div>
+                              <div className="text-[10px] text-slate-500 mb-1 font-sans font-semibold">Full prompt:</div>
                               <div className="mb-2 text-slate-300">{task.prompt}</div>
-                              <div className="text-[10px] text-slate-500 mb-1 font-sans font-semibold">输出:</div>
+                              <div className="text-[10px] text-slate-500 mb-1 font-sans font-semibold">Output:</div>
                               <div className={STATUS_COLOR[task.status]}>
-                                {task.output ?? (task.status === "running" ? "任务运行中…" : "无输出")}
+                                {task.output ?? (task.status === "running" ? "Running…" : "No output")}
                               </div>
                             </div>
                           </td>
@@ -510,22 +524,22 @@ export default function AgentsPage() {
           </div>
         </div>
 
-        {/* ═══ 底部状态栏 ═══ */}
+        {/* ═══ Status bar ═══ */}
         <div className="flex flex-wrap gap-6 text-[10px] text-slate-400 border-t border-slate-100 dark:border-slate-700 pt-3">
-          <span>轮询间隔: 3s</span>
-          <span>后端: {API_BASE}</span>
-          <span>Agent 数量: {AGENTS.length}</span>
-          <span>活跃任务: {tasks.filter((t) => t.status === "running").length}</span>
+          <span>Poll interval: 3s</span>
+          <span>Backend: {API_BASE}</span>
+          <span>Agents: {AGENTS.length}</span>
+          <span>Active tasks: {tasks.filter((t) => t.status === "running").length}</span>
         </div>
       </div>
 
-      {/* ═══ 启动模态框 ═══ */}
+      {/* ═══ Launch modal ═══ */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-lg mx-4 p-6 space-y-4">
             {/* 标题 */}
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold">启动 Agent</h2>
+              <h2 className="text-lg font-bold">Launch an agent</h2>
               <button onClick={() => setModalOpen(false)} className="text-slate-400 hover:text-slate-200 text-xl transition">✕</button>
             </div>
 
@@ -537,7 +551,7 @@ export default function AgentsPage() {
                 onChange={(e) => setParallelMode(e.target.checked)}
                 className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-indigo-500 focus:ring-indigo-500"
               />
-              <span className="text-sm text-slate-400">并行启动模式（可选多个 Agent）</span>
+              <span className="text-sm text-slate-400">Parallel launch (select more than one agent)</span>
             </label>
 
             {parallelMode ? (
@@ -562,7 +576,7 @@ export default function AgentsPage() {
                     {parallelAgents[agent.id]?.checked && (
                       <input
                         type="text"
-                        placeholder={`为 ${agent.name} 输入 prompt…`}
+                        placeholder={`Prompt for ${agent.name}…`}
                         value={parallelAgents[agent.id]?.prompt ?? ""}
                         onChange={(e) =>
                           setParallelAgents((prev) => ({
@@ -581,7 +595,7 @@ export default function AgentsPage() {
               <div className="space-y-3">
                 {/* Agent 下拉 */}
                 <div>
-                  <label className="text-xs text-slate-400 mb-1 block">选择 Agent</label>
+                  <label className="text-xs text-slate-400 mb-1 block">Select an agent</label>
                   <select
                     value={modalAgent}
                     onChange={(e) => setModalAgent(e.target.value)}
@@ -597,7 +611,7 @@ export default function AgentsPage() {
                   <label className="text-xs text-slate-400 mb-1 block">Prompt</label>
                   <textarea
                     rows={3}
-                    placeholder="输入任务指令…"
+                    placeholder="Enter a task instruction…"
                     value={modalPrompt}
                     onChange={(e) => setModalPrompt(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none"
@@ -612,13 +626,13 @@ export default function AgentsPage() {
                 onClick={() => setModalOpen(false)}
                 className="px-4 py-2 rounded-lg text-sm text-slate-400 hover:text-slate-200 transition"
               >
-                取消
+                Cancel
               </button>
               <button
                 onClick={handleModalSubmit}
                 className="px-6 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition shadow-lg shadow-indigo-500/25"
               >
-                启动
+                Launch
               </button>
             </div>
           </div>

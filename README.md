@@ -2,8 +2,15 @@
 
 **Next.js 16 + Tailwind + Recharts** research dashboard for the
 [Kuant quant platform](https://github.com/zwmjj/kuant-core).
-20 panels covering live monitoring, factor research, multi-agent
-control, strategy library, backtester, IDE, and audit reports.
+20 panels covering factor research, strategy library, backtester, IDE,
+audit reports, risk and monitoring.
+
+**Which panels are backed by real data:** `/dashboard`, `/factor`,
+`/audit`, `/docs`, `/ide`, `/source` and `/trading` call `kuant-api`.
+`/risk` calls it and falls back to generated data when it is unreachable,
+labelling which one you are seeing. `/monitor` and `/agents` are demo
+panels — they generate their data in the browser and say so on the page.
+Nothing here reports a real position or a real broker connection.
 
 ## Ecosystem
 
@@ -33,10 +40,10 @@ complete quant research platform. Total ~55,000 LOC, MIT licensed.
 | `/research`   | 14 research studies with interactive charts |
 | `/audit`      | Phase 3+4 SOP audit dashboard |
 | `/sop`        | Strategy-of-production gate-check visualizer |
-| `/risk`       | VaR / CVaR / drawdown / tail risk panel |
-| `/monitor`    | Real-time WebSocket price + signal stream |
+| `/risk`       | VaR / CVaR / drawdown / tail risk panel — live from `/api/risk/*`, falls back to generated data with a visible "Simulated" badge |
+| `/monitor`    | Position / P&L / signal-heatmap layout. **Demo data** — generated client-side on a 2s timer. There is no WebSocket and no broker feed behind this panel |
 | `/trading`    | Live trading controls (paper) |
-| `/agents`     | Multi-agent system control center (start / stop / parallel launch) |
+| `/agents`     | Agent orchestration UI (start / stop / parallel launch). Polls `/api/agents`; **seeds and falls back to generated task history** when the backend is unreachable, and labels it on the page |
 | `/reports`    | Research report viewer + export (PDF / CSV / MD) |
 | `/ide`        | Monaco code editor for custom strategies (backend: /code router) |
 | `/source`     | In-browser source code viewer for qf + strategies |
