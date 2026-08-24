@@ -294,6 +294,20 @@ export default function RiskPage() {
           </div>
         </div>
 
+        {usingMock && (
+          // The risk maths below is real -- qf.risk.RiskAnalyzer and
+          // qf.risk_manager compute these figures properly. The book they run
+          // on is not. Say which half is which.
+          <div className="rounded-xl border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-xs text-amber-900 dark:text-amber-200">
+            <strong className="font-semibold">Synthetic portfolio.</strong>{" "}
+            The VaR, CVaR, HHI and drawdown figures are computed by the real risk
+            engine (<code>qf.risk</code>, <code>qf.risk_manager</code>), but the
+            positions they are computed over are generated from a fixed random
+            seed — the backend reports this as <code>data_source: simulated</code>.
+            The method is real; the book is not.
+          </div>
+        )}
+
         {/* ═══ 1. 顶部 — 健康评分 + 4个指标卡片 ═══ */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           {/* 健康评分圆环 */}
@@ -340,7 +354,7 @@ export default function RiskPage() {
 
           {/* 左栏: 实时告警面板 (3/5) */}
           <div className="lg:col-span-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-            <h3 className="text-sm font-bold mb-4">Live Alerts</h3>
+            <h3 className="text-sm font-bold mb-4">Alerts</h3>
             <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
               {alerts.length === 0 && (
                 <p className="text-sm text-slate-400 text-center py-8">No alerts</p>
