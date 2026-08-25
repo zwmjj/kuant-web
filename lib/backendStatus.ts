@@ -1,6 +1,5 @@
 "use client";
 
-import { BACKEND_URL } from "@/lib/backend";
 
 /**
  * Why this exists.
@@ -79,10 +78,17 @@ export async function fetchPanel<T>(
   }
 }
 
-/** Is the backend answering at all? Used to separate "asleep" from "route absent". */
+/**
+ * Is the backend answering at all? Used to separate "asleep" from "route absent".
+ *
+ * Goes through the same-origin rewrite rather than the absolute backend URL: a
+ * direct cross-origin probe would depend on this page's origin appearing in
+ * kuant-api's hand-maintained CORS allow_origins list, and would report a
+ * healthy backend as offline from any origin not on it.
+ */
 export async function probeBackend(): Promise<"online" | "offline"> {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/health`, { cache: "no-store" });
+    const res = await fetch("/api/health", { cache: "no-store" });
     return res.ok ? "online" : "offline";
   } catch {
     return "offline";

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { BackendFailure } from "@/lib/backendStatus";
+import BackendWaking from "@/components/BackendWaking";
 
 /**
  * Shown in place of a panel whose data did not arrive. The point is that the
@@ -22,6 +23,22 @@ export default function PanelUnavailable({
   onRetry?: () => void | Promise<void>;
 }) {
   const [retrying, setRetrying] = useState(false);
+  const [waking, setWaking] = useState(false);
+
+  // "Unreachable" is the cold-start case, and it is the one where the visitor
+  // benefits from watching rather than clicking. Hand it to BackendWaking,
+  // which polls /api/health and reloads the panel the moment it answers.
+  if (failure === "unreachable" && waking && onRetry) {
+    return (
+      <BackendWaking
+        onReady={async () => {
+          await onRetry();
+          setWaking(false);
+        }}
+        onGiveUp={() => setWaking(false)}
+      />
+    );
+  }
 
   const copy: Record<BackendFailure, { title: string; body: React.ReactNode; tone: string }> = {
     "not-deployed": {
@@ -42,14 +59,16 @@ export default function PanelUnavailable({
       ),
     },
     unreachable: {
-      title: "Backend not responding",
+      title: "Backend is asleep",
       tone: "amber",
+      // Kept short on purpose: the full explanation and the elapsed-time bar
+      // live in BackendWaking, one click away, so this box does not make the
+      // visitor read a paragraph before they can act.
       body: (
         <>
-          Nothing answered at <code>/api/health</code>. If the API is on a free tier it
-          sleeps after about 15 minutes idle and takes roughly 50 seconds to wake up, so
-          the first request after a quiet period usually fails and the next one
-          succeeds. That is a cost decision, not a fault.
+          Nothing answered at <code>/api/health</code>. The API is on a free-tier
+          instance that spins down after about 15 minutes without traffic; waking it
+          takes roughly 30–60 seconds.
         </>
       ),
     },
@@ -79,18 +98,11 @@ export default function PanelUnavailable({
       <div className="text-xs leading-relaxed opacity-90">{c.body}</div>
       {onRetry && failure === "unreachable" && (
         <button
-          onClick={async () => {
-            setRetrying(true);
-            try {
-              await onRetry();
-            } finally {
-              setRetrying(false);
-            }
-          }}
+          onClick={() => setWaking(true)}
           disabled={retrying}
           className="mt-3 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 disabled:opacity-60 text-white text-xs font-semibold transition"
         >
-          {retrying ? "Waking the backend…" : "Retry"}
+          Wake it up
         </button>
       )}
     </div>
