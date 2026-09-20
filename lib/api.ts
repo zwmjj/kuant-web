@@ -1,4 +1,5 @@
 import axios from "axios";
+import { BACKEND_URL } from "@/lib/backend";
 
 const api = axios.create({ baseURL: "/api" });
 
@@ -176,8 +177,7 @@ export interface SensitivityResult {
 // ── Advanced analysis API calls ─────────────────────────────────────
 // Direct to backend (bypass Next.js rewrite proxy which has ~30s timeout)
 
-const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-const advancedApi = axios.create({ baseURL: `${backendUrl}/api`, timeout: 300000 });
+const advancedApi = axios.create({ baseURL: `${BACKEND_URL}/api`, timeout: 300000 });
 
 advancedApi.interceptors.request.use((config) => {
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;

@@ -142,9 +142,14 @@ export default function RiskPage() {
     try {
       const res = await fetch("/api/risk/realtime");
       if (!res.ok) throw new Error("API error");
-      const data: RiskRealtime = await res.json();
+      const data: RiskRealtime & { data_source?: string } = await res.json();
       setRiskData(data);
-      setUsingMock(false);
+      // A 200 from the backend does not mean the numbers are real. The risk
+      // router generates its portfolio from np.random.RandomState(42) and
+      // says so in `data_source`; the risk maths on top is genuine, the
+      // portfolio underneath is not. Trust that field rather than the status
+      // code, or the badge turns green on synthetic data.
+      setUsingMock(data.data_source !== "live");
     } catch {
       // 后端不可用，使用模拟数据
       setUsingMock(true);
@@ -156,9 +161,11 @@ export default function RiskPage() {
     try {
       const res = await fetch("/api/risk/alerts");
       if (!res.ok) throw new Error("API error");
-      const data: AlertItem[] = await res.json();
+      const body = await res.json();
+      // The endpoint returns an envelope, not a bare array.
+      const data: AlertItem[] = Array.isArray(body) ? body : (body?.alerts ?? []);
       setAlerts(data);
-      setUsingMock(false);
+      setUsingMock((Array.isArray(body) ? undefined : body?.data_source) !== "live");
     } catch {
       // 后端不可用，模拟新增告警
       setUsingMock(true);
@@ -283,9 +290,23 @@ export default function RiskPage() {
           </div>
           <div className="flex items-center gap-2">
             <span className={`inline-block w-2.5 h-2.5 rounded-full ${usingMock ? "bg-amber-500" : "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]"}`} />
-            <span className="text-xs text-slate-400">{usingMock ? "Simulated" : "Live Data"}</span>
+            <span className="text-xs text-slate-400">{usingMock ? "Synthetic portfolio" : "Live Data"}</span>
           </div>
         </div>
+
+        {usingMock && (
+          // The risk maths below is real -- qf.risk.RiskAnalyzer and
+          // qf.risk_manager compute these figures properly. The book they run
+          // on is not. Say which half is which.
+          <div className="rounded-xl border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-xs text-amber-900 dark:text-amber-200">
+            <strong className="font-semibold">Synthetic portfolio.</strong>{" "}
+            The VaR, CVaR, HHI and drawdown figures are computed by the real risk
+            engine (<code>qf.risk</code>, <code>qf.risk_manager</code>), but the
+            positions they are computed over are generated from a fixed random
+            seed — the backend reports this as <code>data_source: simulated</code>.
+            The method is real; the book is not.
+          </div>
+        )}
 
         {/* ═══ 1. 顶部 — 健康评分 + 4个指标卡片 ═══ */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -333,7 +354,7 @@ export default function RiskPage() {
 
           {/* 左栏: 实时告警面板 (3/5) */}
           <div className="lg:col-span-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-            <h3 className="text-sm font-bold mb-4">Live Alerts</h3>
+            <h3 className="text-sm font-bold mb-4">Alerts</h3>
             <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
               {alerts.length === 0 && (
                 <p className="text-sm text-slate-400 text-center py-8">No alerts</p>
@@ -482,7 +503,7 @@ export default function RiskPage() {
         {/* ═══ 底部状态栏 ═══ */}
         <div className="flex flex-wrap gap-6 text-[10px] text-slate-400 border-t border-slate-100 dark:border-slate-700 pt-3">
           <span>Refresh interval: 3s</span>
-          <span>Data source: {usingMock ? "Simulated (backend offline)" : "Live API"}</span>
+          <span>Data source: {usingMock ? "synthetic portfolio (risk maths is real, the book is generated)" : "live API"}</span>
           <span>Health Score: {riskData.healthScore} / 100</span>
         </div>
       </div>

@@ -104,6 +104,13 @@ export default function AuditPage() {
     </th>
   );
 
+  // The strategy table is driven by final_push_results.json, which is not
+  // committed to kuant-api. When it is absent the endpoint returns an empty
+  // list and this page used to render a dashboard with no rows in it and a
+  // "Last audit: live" header -- indistinguishable from a strategy set that
+  // genuinely passed nothing. Say which one it is.
+  const noStrategyData = !data.strategies || data.strategies.length === 0;
+
   return (
     <NavShell>
       <div className="max-w-7xl mx-auto px-5 py-6">
@@ -111,7 +118,10 @@ export default function AuditPage() {
           <div>
             <h1 className="text-2xl font-bold">Audit Dashboard</h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Phase 3 + Phase 4 compliance. Last audit: {data.date}
+              {/* The API returns the literal string "live" here when it has no
+                  dated result file, which read as a timestamp. Say what it is. */}
+              Phase 3 + Phase 4 compliance.{" "}
+              {data.date === "live" ? "Computed on request." : `Last audit: ${data.date}`}
             </p>
           </div>
           {/* Summary badges */}
@@ -126,6 +136,23 @@ export default function AuditPage() {
             ))}
           </div>
         </div>
+
+        {noStrategyData && (
+          <div className="mb-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-5 py-4 text-sm text-slate-700 dark:text-slate-300">
+            <div className="font-semibold mb-1.5">No strategy results on this deployment</div>
+            <div className="text-xs leading-relaxed opacity-90">
+              The gate dashboard and the ranking table below are driven by
+              <code className="mx-1">final_push_results.json</code>, which is not committed
+              to <code>kuant-api</code>. The endpoint answered normally and returned an
+              empty list. The Phase 3 / Phase 4 check results further down are static and
+              are unaffected.
+              <br />
+              <br />
+              An empty table here means the results file is absent, not that no strategy
+              passed.
+            </div>
+          </div>
+        )}
 
         {/* Strategy Selector + Gate Dashboard */}
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 mb-5">

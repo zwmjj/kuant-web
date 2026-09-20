@@ -121,7 +121,7 @@ const fmtPnl = (n: number) => (n >= 0 ? "+" : "") + n.toLocaleString("en-US", { 
 export default function MonitorPage() {
   const router = useRouter();
 
-  // WebSocket 连接状态（模拟）
+  // Demo stream connection state (no real socket is opened)
   const [wsConnected, setWsConnected] = useState(false);
 
   // 数据状态
@@ -156,12 +156,12 @@ export default function MonitorPage() {
     setPnlSeries(generatePnlSeries());
     updateAccount(initPos);
 
-    // 模拟 WebSocket 连接建立（延迟 800ms）
+    // Simulate the connection handshake (800ms) so the UI exercises its loading state
     const connectTimer = setTimeout(() => setWsConnected(true), 800);
     return () => clearTimeout(connectTimer);
   }, [router, updateAccount]);
 
-  // 模拟实时数据推送（每 2 秒 tick 一次）
+  // Simulated tick, every 2 seconds
   useEffect(() => {
     if (!wsConnected) return;
 
@@ -198,17 +198,28 @@ export default function MonitorPage() {
     <NavShell>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">
 
-        {/* ═══ 标题栏 + WebSocket 状态指示灯 ═══ */}
+        {/* ═══ Header + demo-stream indicator ═══ */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Trading Monitor</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Real-time trading monitor dashboard</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Monitor layout, driven by generated data</p>
           </div>
           <div className="flex items-center gap-2">
-            {/* WebSocket 连接状态指示灯 */}
-            <span className={`inline-block w-2.5 h-2.5 rounded-full ${wsConnected ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]" : "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.6)]"}`} />
-            <span className="text-xs text-slate-400">{wsConnected ? "WS Connected" : "WS Disconnected"}</span>
+            {/* Amber, not green: this panel has no live feed behind it. */}
+            <span className={`inline-block w-2.5 h-2.5 rounded-full ${wsConnected ? "bg-amber-500" : "bg-slate-400"}`} />
+            <span className="text-xs text-slate-400">{wsConnected ? "Demo data" : "Stopped"}</span>
           </div>
+        </div>
+
+        {/* Say it once, plainly, above the fold. Every number on this page is
+            generated in the browser; there is no WebSocket and no broker
+            connection. The panel is here to show the layout and the update
+            path, not to report a position. */}
+        <div className="rounded-xl border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-xs text-amber-900 dark:text-amber-200">
+          <strong className="font-semibold">Demo data.</strong>{" "}Positions, prices,
+          P&amp;L and the signal heatmap on this page are generated client-side on a
+          2-second timer. There is no live market feed and no broker connection
+          behind it — this panel demonstrates the layout and the update path only.
         </div>
 
         {/* ═══ 1. 账户总览卡片 ═══ */}
@@ -227,7 +238,7 @@ export default function MonitorPage() {
 
           {/* 左栏: 实时持仓表格 (3/5 宽度) */}
           <div className="lg:col-span-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-            <h3 className="text-sm font-bold mb-4">Live Positions</h3>
+            <h3 className="text-sm font-bold mb-4">Positions</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -319,7 +330,7 @@ export default function MonitorPage() {
 
         {/* ═══ 3. 底部: 实时 PnL 折线图 ═══ */}
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-          <h3 className="text-sm font-bold mb-4">Real-time PnL Curve</h3>
+          <h3 className="text-sm font-bold mb-4">Intraday PnL Curve</h3>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={pnlSeries}>
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
@@ -345,9 +356,9 @@ export default function MonitorPage() {
         {/* ═══ 底部状态栏 ═══ */}
         <div className="flex flex-wrap gap-6 text-[10px] text-slate-400 border-t border-slate-100 dark:border-slate-700 pt-3">
           <span>Refresh interval: 2s</span>
-          <span>Data source: simulated (using setInterval when backend offline)</span>
-          <span className={wsConnected ? "text-emerald-500" : "text-red-400"}>
-            {wsConnected ? "WebSocket Live" : "WebSocket Disconnected"}
+          <span>Data source: generated in the browser — not a live feed</span>
+          <span className={wsConnected ? "text-amber-500" : "text-slate-400"}>
+            {wsConnected ? "Demo stream (setInterval)" : "Demo stream stopped"}
           </span>
         </div>
       </div>

@@ -142,12 +142,29 @@ export default function TradingPage() {
     <NavShell>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">
 
+        {status !== "connected" && (
+          // This panel has no backend in the public kuant-api: no /api/trading
+          // router is registered there, so the calls 404 and the header sits on
+          // "Signal Preview" forever. The panel is right not to invent state --
+          // it just never said why. Execution code is deliberately unpublished.
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-5 py-4 text-sm text-slate-700 dark:text-slate-300">
+            <div className="font-semibold mb-1.5">No trading backend on this deployment</div>
+            <div className="text-xs leading-relaxed opacity-90">
+              The public <code>kuant-api</code> registers no <code>/api/trading</code>
+              {" "}router, so account, position and fill data are unavailable here and this
+              page shows nothing rather than placeholder state. That omission is
+              deliberate: execution code is not published. Nothing on this screen
+              represents a real position or a real broker connection.
+            </div>
+          </div>
+        )}
+
         {/* ═══ Header ═══ */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Live Trading</h1>
+            <h1 className="text-2xl font-bold">Trading</h1>
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              Phase 7 — Live Portfolio
+              Paper-trading control surface
             </p>
           </div>
           <div className="flex items-center gap-3">
